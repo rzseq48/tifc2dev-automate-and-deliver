@@ -6,6 +6,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_FILE = BASE_DIR / "data" / "tickets.json"
 REPORT_FILE = BASE_DIR / "reports" / "overdue_high_priority.json"
 DEFAULT_THRESHOLD_DAYS = 14
+TERMINAL_STATUSES = {"Resolved", "Closed"}
 
 
 def _parse(value):
@@ -13,7 +14,38 @@ def _parse(value):
 
 
 def build_report(tickets, threshold_days, as_of):
-    raise NotImplementedError("Complete build_report() using the learner handout.")
+    included = []
+
+    for ticket in tickets:
+        created_at = _parse(ticket["created_at"])
+        age_days = (as_of - created_at).days
+
+        is_overdue = age_days > threshold_days
+        is_high_priority = ticket["priority"] == "High"
+        is_open = ticket["status"] not in TERMINAL_STATUSES
+
+        if is_overdue and is_high_priority and is_open:
+            included.append(
+                {
+                    "id": ticket["id"],
+                    "title": ticket["title"],
+                    "priority": ticket["priority"],
+                    "status": ticket["status"],
+                    "created_at": ticket["created_at"],
+                    "age_days": age_days,
+                    "assigned_to": ticket.get("assigned_to"),
+                }
+            )
+
+    return {
+        "summary": {
+            "tickets_processed": len(tickets),
+            "tickets_included": len(included),
+            "generated_at": as_of.isoformat(),
+        },
+        "tickets": included,
+    }
+
 
 
 def load_tickets(path=DATA_FILE):
